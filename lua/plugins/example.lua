@@ -9,17 +9,6 @@ if true then return {} end
 -- * disable/enabled LazyVim plugins
 -- * override the configuration of LazyVim plugins
 return {
-  -- add gruvbox
-  { "ellisonleao/gruvbox.nvim" },
-
-  -- Configure LazyVim to load gruvbox
-  {
-    "LazyVim/LazyVim",
-    opts = {
-      colorscheme = "gruvbox",
-    },
-  },
-
   -- change trouble config
   {
     "folke/trouble.nvim",
@@ -88,7 +77,6 @@ return {
     "neovim/nvim-lspconfig",
     ---@class PluginLspOpts
     opts = {
-      ---@type lspconfig.options
       servers = {
         -- pyright will be automatically installed with mason and loaded with lspconfig
         pyright = {},
@@ -96,90 +84,40 @@ return {
     },
   },
 
-  -- add tsserver and setup with typescript.nvim instead of lspconfig
-  {
-    "neovim/nvim-lspconfig",
-    dependencies = {
-      "jose-elias-alvarez/typescript.nvim",
-      init = function()
-        require("lazyvim.util").lsp.on_attach(function(_, buffer)
-          -- stylua: ignore
-          vim.keymap.set( "n", "<leader>co", "TypescriptOrganizeImports", { buffer = buffer, desc = "Organize Imports" })
-          vim.keymap.set("n", "<leader>cR", "TypescriptRenameFile", { desc = "Rename File", buffer = buffer })
-        end)
-      end,
-    },
-    ---@class PluginLspOpts
-    opts = {
-      ---@type lspconfig.options
-      servers = {
-        -- tsserver will be automatically installed with mason and loaded with lspconfig
-        tsserver = {},
-        rust_analyzer = {
-          keys = {
-            { "K", "<cmd>RustHoverActions<cr>", desc = "Hover Actions (Rust)" },
-            { "<leader>cR", "<cmd>RustCodeAction<cr>", desc = "Code Action (Rust)" },
-            { "<leader>dr", "<cmd>RustDebuggables<cr>", desc = "Run Debuggables (Rust)" },
-          },
-          settings = {
-            ["rust-analyzer"] = {
-              cargo = {
-                allFeatures = true,
-                loadOutDirsFromCheck = true,
-                runBuildScripts = true,
-              },
-              -- Add clippy lints for Rust.
-              checkOnSave = {
-                allFeatures = true,
-                command = "clippy",
-                extraArgs = { "--no-deps" },
-              },
-              procMacro = {
-                enable = true,
-                ignored = {
-                  ["async-trait"] = { "async_trait" },
-                  ["napi-derive"] = { "napi" },
-                  ["async-recursion"] = { "async_recursion" },
-                },
-              },
-            },
-          },
-        },
-      },
-      taplo = {
-        keys = {
-          {
-            "K",
-            function()
-              if vim.fn.expand("%:t") == "Cargo.toml" and require("crates").popup_available() then
-                require("crates").show_popup()
-              else
-                vim.lsp.buf.hover()
-              end
-            end,
-            desc = "Show Crate Documentation",
-          },
-        },
-      },
-      -- you can do any additional lsp server setup here
-      -- return true if you don't want this server to be setup with lspconfig
-      ---@type table<string, fun(server:string, opts:_.lspconfig.options):boolean?>
-      setup = {
-        -- example to setup with typescript.nvim
-        tsserver = function(_, opts)
-          require("typescript").setup({ server = opts })
-          return true
-        end,
-        -- Specify * to use this function as a fallback for any server
-        -- ["*"] = function(server, opts) end,
-        rust_analyzer = function(_, opts)
-          local rust_tools_opts = require("lazyvim.util").opts("rust-tools.nvim")
-          require("rust-tools").setup(vim.tbl_deep_extend("force", rust_tools_opts or {}, { server = opts }))
-          return true
-        end,
-      },
-    },
-  },
+  --  -- add tsserver and setup with typescript.nvim instead of lspconfig
+  --  {
+  --    "neovim/nvim-lspconfig",
+  --    dependencies = {
+  --      "jose-elias-alvarez/typescript.nvim",
+  --      init = function()
+  --        require("lazyvim.util").lsp.on_attach(function(_, buffer)
+  --          -- stylua: ignore
+  --          vim.keymap.set( "n", "<leader>co", "TypescriptOrganizeImports", { buffer = buffer, desc = "Organize Imports" })
+  --          vim.keymap.set("n", "<leader>cR", "TypescriptRenameFile", { desc = "Rename File", buffer = buffer })
+  --        end)
+  --      end,
+  --    },
+  --    ---@class PluginLspOpts
+  --    opts = {
+  --
+  --      servers = {
+  --        -- tsserver will be automatically installed with mason and loaded with lspconfig
+  --        tsserver = {},
+  --      },
+  --      -- you can do any additional lsp server setup here
+  --      -- return true if you don't want this server to be setup with lspconfig
+  --      ---@type table<string, fun(server:string):boolean?>
+  --      setup = {
+  --        -- example to setup with typescript.nvim
+  --        tsserver = function(opts)
+  --          require("typescript").setup({ server = opts })
+  --          return true
+  --        end,
+  --        -- Specify * to use this function as a fallback for any server
+  --        -- ["*"] = function(server, opts) end,
+  --      },
+  --    },
+  --  },
 
   -- for typescript, LazyVim also includes extra specs to properly setup lspconfig,
   -- treesitter, mason and typescript.nvim. So instead of the above, you can use:
@@ -310,45 +248,6 @@ return {
           end
         end, { "i", "s" }),
       })
-    end,
-  },
-
-  {
-    "simrat39/rust-tools.nvim",
-    opts = function()
-      local ok, mason_registry = pcall(require, "mason-registry")
-      local adapter ---@type any
-      if ok then
-        -- rust tools configuration for debugging support
-        local codelldb = mason_registry.get_package("codelldb")
-        local extension_path = codelldb:get_install_path() .. "/extension/"
-        local codelldb_path = extension_path .. "adapter/codelldb"
-        local liblldb_path = ""
-        if vim.loop.os_uname().sysname:find("Windows") then
-          liblldb_path = extension_path .. "lldb\\bin\\liblldb.dll"
-        elseif vim.fn.has("mac") == 1 then
-          liblldb_path = extension_path .. "lldb/lib/liblldb.dylib"
-        else
-          liblldb_path = extension_path .. "lldb/lib/liblldb.so"
-        end
-        adapter = require("rust-tools.dap").get_codelldb_adapter(codelldb_path, liblldb_path)
-      end
-      return {
-        dap = {
-          adapter = adapter,
-        },
-        tools = {
-          on_initialized = function()
-            vim.cmd([[
-              augroup RustLSP
-                autocmd CursorHold                      *.rs silent! lua vim.lsp.buf.document_highlight()
-                autocmd CursorMoved,InsertEnter         *.rs silent! lua vim.lsp.buf.clear_references()
-                autocmd BufEnter,CursorHold,InsertLeave *.rs silent! lua vim.lsp.codelens.refresh()
-              augroup END
-            ]])
-          end,
-        },
-      }
     end,
   },
 }
